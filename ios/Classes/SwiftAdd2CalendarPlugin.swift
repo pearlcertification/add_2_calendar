@@ -13,7 +13,7 @@ extension Date {
 var statusBarStyle = UIApplication.shared.statusBarStyle
 
 public class SwiftAdd2CalendarPlugin: NSObject, FlutterPlugin {
-    
+
     public static func register(with registrar: FlutterPluginRegistrar) {
       let channel = FlutterMethodChannel(name: "add_2_calendar", binaryMessenger: registrar.messenger())
       let instance = SwiftAdd2CalendarPlugin()
@@ -23,8 +23,8 @@ public class SwiftAdd2CalendarPlugin: NSObject, FlutterPlugin {
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
       if call.method == "add2Cal" {
         let args = call.arguments as! [String:Any]
-       
-          
+
+
         addEventToCalendar(from: args,completion:{ (success) -> Void in
               if success {
                   result(true)
@@ -36,8 +36,8 @@ public class SwiftAdd2CalendarPlugin: NSObject, FlutterPlugin {
     }
 
     private func addEventToCalendar(from args: [String:Any], completion: ((_ success: Bool) -> Void)? = nil) {
-        
-        
+
+
         let title = args["title"] as! String
         let description = args["desc"] is NSNull ? nil: args["desc"] as! String
         let location = args["location"] is NSNull ? nil: args["location"] as! String
@@ -47,10 +47,10 @@ public class SwiftAdd2CalendarPlugin: NSObject, FlutterPlugin {
         let alarmInterval = args["alarmInterval"] as? Double
         let allDay = args["allDay"] as! Bool
         let url = args["url"] as? String
-        
-        
+
+
         let eventStore = EKEventStore()
-        
+
         eventStore.requestAccess(to: .event, completion: { [weak self] (granted, error) in
             if (granted) && (error == nil) {
                 let event = EKEvent(eventStore: eventStore)
@@ -73,21 +73,48 @@ public class SwiftAdd2CalendarPlugin: NSObject, FlutterPlugin {
                     event.url = URL(string: url);
                 }
                 event.isAllDay = allDay
-                
+
                 if let recurrence = args["recurrence"] as? [String:Any]{
                     let interval = recurrence["interval"] as! Int
                     let frequency = recurrence["frequency"] as! Int
-                    let end = recurrence["endDate"] as? Double// Date(milliseconds: (args["startDate"] as! Double))
+                    let days = recurrence["days"] as? [String] // Must be an array like ["monday", "tuesday", "wednesday", ...] (lowercase, full weekday names)
+                    let end = recurrence["endDate"] as? Double // Date(milliseconds: (args["startDate"] as! Double))
                     let ocurrences = recurrence["ocurrences"] as? Int
-                    
+
+                    var daysOfTheWeek = days?.map {
+                      (dayOfWeek: String) -> EKRecurrenceDayOfWeek in
+                        switch dayOfWeek {
+                        case "monday":
+                          return try! EKRecurrenceDayOfWeek.init(EKWeekday.monday)
+                        case "tuesday":
+                          return try! EKRecurrenceDayOfWeek.init(EKWeekday.tuesday)
+                        case "wednesday":
+                          return try! EKRecurrenceDayOfWeek.init(EKWeekday.wednesday)
+                        case "thursday":
+                          return try! EKRecurrenceDayOfWeek.init(EKWeekday.thursday)
+                        case "friday":
+                          return try! EKRecurrenceDayOfWeek.init(EKWeekday.friday)
+                        case "saturday":
+                          return try! EKRecurrenceDayOfWeek.init(EKWeekday.saturday)
+                        default:
+                          return try! EKRecurrenceDayOfWeek.init(EKWeekday.sunday)
+                        }
+                    }
+
                     let recurrenceRule = EKRecurrenceRule.init(
                         recurrenceWith: EKRecurrenceFrequency(rawValue: frequency)!,
                         interval: interval,
+                        daysOfTheWeek: daysOfTheWeek,
+                        daysOfTheMonth: nil,
+                        monthsOfTheYear: nil,
+                        weeksOfTheYear: nil,
+                        daysOfTheYear: nil,
+                        setPositions: nil,
                         end: ocurrences != nil ? EKRecurrenceEnd.init(occurrenceCount: ocurrences!) : end != nil ? EKRecurrenceEnd.init(end: Date(milliseconds: end!)) : nil
                     )
                     event.recurrenceRules = [recurrenceRule]
                 }
-                
+
                 self?.presentCalendarModalToAddEvent(event, eventStore: eventStore, completion: completion)
             } else {
                 completion?(false)
@@ -98,9 +125,9 @@ public class SwiftAdd2CalendarPlugin: NSObject, FlutterPlugin {
     private func getAuthorizationStatus() -> EKAuthorizationStatus {
         return EKEventStore.authorizationStatus(for: EKEntityType.event)
     }
-    
+
     // Show event kit ui to add event to calendar
-    
+
     func presentCalendarModalToAddEvent(_ event: EKEvent, eventStore: EKEventStore, completion: ((_ success: Bool) -> Void)? = nil) {
         let authStatus = getAuthorizationStatus()
         switch authStatus {
@@ -128,19 +155,19 @@ public class SwiftAdd2CalendarPlugin: NSObject, FlutterPlugin {
             completion?(false)
         }
     }
-    
+
     // Present edit event calendar modal
-    
+
     func presentEventCalendarDetailModal(event: EKEvent, eventStore: EKEventStore) {
         let eventModalVC = EKEventEditViewController()
         eventModalVC.event = event
         eventModalVC.eventStore = eventStore
         eventModalVC.editViewDelegate = self
-        
+
         if #available(iOS 13, *) {
             eventModalVC.modalPresentationStyle = .fullScreen
         }
-        
+
         if let root = UIApplication.shared.keyWindow?.rootViewController {
             root.present(eventModalVC, animated: true, completion: {
                 statusBarStyle = UIApplication.shared.statusBarStyle
@@ -151,7 +178,7 @@ public class SwiftAdd2CalendarPlugin: NSObject, FlutterPlugin {
 }
 
 extension SwiftAdd2CalendarPlugin: EKEventEditViewDelegate {
-    
+
     public func eventEditViewController(_ controller: EKEventEditViewController, didCompleteWith action: EKEventEditViewAction) {
         controller.dismiss(animated: true, completion: {
             UIApplication.shared.statusBarStyle = statusBarStyle

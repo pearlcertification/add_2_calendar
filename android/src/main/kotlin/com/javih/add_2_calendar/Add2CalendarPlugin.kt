@@ -125,7 +125,6 @@ class Add2CalendarPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
 
 
     private fun buildRRule(recurrence: HashMap<String, Any>): String? {
-
         var rRule = recurrence["rRule"] as String?
         if (rRule == null) {
             rRule = ""
@@ -151,8 +150,25 @@ class Add2CalendarPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
                 val formatter: DateFormat = SimpleDateFormat("yyyyMMdd'T'HHmmss")
                 rRule += "UNTIL=" + formatter.format(endDate).toString() + ";"
             }
+            val days = recurrence["days"] as List<String>?
+            if (days != null && days.size > 0) {
+                val transform: (String) -> String = {
+                    when (it) {
+                        "monday" -> "MO"
+                        "tuesday" -> "TU"
+                        "wednesday" -> "WE"
+                        "thursday" -> "TH"
+                        "friday" -> "FR"
+                        "saturday" -> "SA"
+                        else -> "SU"
+                    }
+                }
+
+                val result = days.map( transform )
+                rRule += "BYDAY=" + result.joinToString(separator = ",")
+            }
         }
+        println(rRule);
         return rRule
     }
-
 }
