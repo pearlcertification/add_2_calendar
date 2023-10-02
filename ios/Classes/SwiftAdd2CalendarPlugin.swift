@@ -150,7 +150,7 @@ public class SwiftAdd2CalendarPlugin: NSObject, FlutterPlugin {
                     completion?(false)
                 }
             })
-        case .denied, .restricted:
+        default:
             // Auth denied or restricted
             completion?(false)
         }
